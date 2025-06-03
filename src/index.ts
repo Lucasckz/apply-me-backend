@@ -12,7 +12,7 @@ dotenv.config();
 const resumeService = new ResumeService();
 const app = express();
 
-// CORS and JSON middleware ABSOLUTELY FIRST!
+// CORS and body parsing middleware (must be first)
 app.use(cors({
   origin: 'http://localhost:5173',
   optionsSuccessStatus: 200,
@@ -21,13 +21,12 @@ app.use(cors({
 }));
 app.options('*', cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // <-- Add this line here
+app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
+// Serve static files from /outputs
 app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
 
 const PORT = 4000;
-// Set up multer for file uploadsServer is running on port 3000
 const upload = multer({ dest: 'uploads/' });
 
 // Basic route
@@ -35,15 +34,17 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Hello, you!');
 });
 
+// CORS test route
 app.get('/test-cors', (_req: Request, res: Response) => {
   res.json({ message: 'CORS works!' });
 });
 
+// Resume creation endpoint
 app.post('/resume', async (req: Request, res: Response) => {
   res.send(await resumeService.createResume(req.body));
 });
 
-// New endpoint for file upload
+// File upload and resume PDF generation endpoint
 app.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -51,8 +52,10 @@ app.post('/upload', upload.single('file'), async (req: Request, res: Response) =
       return res.status(400).send('No file uploaded.');
     }
     console.log('File received:', req.file.path);
+
     const profileText = await resumeService.extractTextFromPdf(req.file.path);
     console.log('Extracted profile text');
+
     const jobDescription = req.body.job || "Default job description here";
     const resumeText = await resumeService.openAITool.getResume({
       profile: profileText,
@@ -64,14 +67,12 @@ app.post('/upload', upload.single('file'), async (req: Request, res: Response) =
     const pdfPath = path.join(__dirname, '../outputs/resume.pdf');
     await createPdfFromText(resumeText, pdfPath);
 
-    // Log before sending
     console.log(`Sending PDF: ${pdfPath}`);
 
     // Send PDF as download
     res.download(pdfPath, 'resume.pdf', (err) => {
       if (err) {
         console.error('Error sending PDF:', err);
-        // Don't send another response here if headers are already sent!
       } else {
         console.log('PDF sent successfully');
       }
