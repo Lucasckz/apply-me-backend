@@ -49,9 +49,12 @@ class OpenAITool {
 
         const response = await this.client.responses.create({
             model: "gpt-4.1",
-            input: "Create an ATS compatible resume as a pdf template based on this linked in profile: "+this.profile+" and this job description: "+ this.jobDescription
-             + "Please provide the output in a specific visual format, MS Word, or PDF. The resume should be ATS compatible and include the following sections: Contact Information, Summary, Skills, Experience, Education, Certifications, and Additional Information. Ensure that the formatting is clean and professional.", 
-        });
+            input:   "Create a clean, ATS-friendly resume in plain text without using markdown, asterisks, or formatting symbols. Structure the resume using ALL CAPS section headers (e.g., SUMMARY, SKILLS, EXPERIENCE) and dashes (-) for bullet points.Base it on the following LinkedIn profile: " +
+    this.profile +
+    " and the following job description: " +
+    this.jobDescription +
+    ". Include these sections in order: Contact Information, Summary, Skills, Experience, Education, Certifications, Additional Information."
+});
 
         console.log(response.output_text);
         return response.output_text;
