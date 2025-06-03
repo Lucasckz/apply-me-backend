@@ -5,23 +5,38 @@ import multer from 'multer';
 import path from 'path';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
+import cors from 'cors';
 
 dotenv.config();
 
 const resumeService = new ResumeService();
 const app = express();
-const PORT = 3000;
 
-// Middleware to parse JSON bodies
+// CORS and JSON middleware ABSOLUTELY FIRST!
+app.use(cors({
+  origin: 'http://localhost:5173',
+  optionsSuccessStatus: 200,
+  credentials: true,
+  exposedHeaders: ['Content-Disposition', 'Content-Type']
+}));
+app.options('*', cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // <-- Add this line here
 
-// Set up multer for file uploads
+// Serve static files
+app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
+
+const PORT = 4000;
+// Set up multer for file uploadsServer is running on port 3000
 const upload = multer({ dest: 'uploads/' });
 
 // Basic route
-app.get('/', (req: Request, res: Response) => {
-  console.log(req);
+app.get('/', (_req: Request, res: Response) => {
   res.send('Hello, you!');
+});
+
+app.get('/test-cors', (_req: Request, res: Response) => {
+  res.json({ message: 'CORS works!' });
 });
 
 app.post('/resume', async (req: Request, res: Response) => {
@@ -30,28 +45,41 @@ app.post('/resume', async (req: Request, res: Response) => {
 
 // New endpoint for file upload
 app.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
-  const profileText = await resumeService.extractTextFromPdf(req.file.path);
-  const jobDescription = req.body.job || "Default job description here";
-  const resumeText = await resumeService.openAITool.getResume({
-    profile: profileText,
-    job: jobDescription
-  } as any);
-
-  // Create PDF
-  const pdfPath = path.join(__dirname, '../outputs/resume.pdf');
-  await createPdfFromText(resumeText, pdfPath);
-
-  // Send PDF as download
-  res.download(pdfPath, 'resume.pdf', (err) => {
-    if (err) {
-      res.status(500).send('Error sending PDF');
+  try {
+    if (!req.file) {
+      console.log('No file uploaded');
+      return res.status(400).send('No file uploaded.');
     }
-    // Optionally, delete the file after sending
-    // fs.unlinkSync(pdfPath);
-  });
+    console.log('File received:', req.file.path);
+    const profileText = await resumeService.extractTextFromPdf(req.file.path);
+    console.log('Extracted profile text');
+    const jobDescription = req.body.job || "Default job description here";
+    const resumeText = await resumeService.openAITool.getResume({
+      profile: profileText,
+      job: jobDescription
+    } as any);
+    console.log('Resume text generated');
+
+    // Create PDF
+    const pdfPath = path.join(__dirname, '../outputs/resume.pdf');
+    await createPdfFromText(resumeText, pdfPath);
+
+    // Log before sending
+    console.log(`Sending PDF: ${pdfPath}`);
+
+    // Send PDF as download
+    res.download(pdfPath, 'resume.pdf', (err) => {
+      if (err) {
+        console.error('Error sending PDF:', err);
+        // Don't send another response here if headers are already sent!
+      } else {
+        console.log('PDF sent successfully');
+      }
+    });
+  } catch (err) {
+    console.error('Error in /upload:', err);
+    res.status(500).send('Internal server error');
+  }
 });
 
 // Helper function to create a PDF from text
