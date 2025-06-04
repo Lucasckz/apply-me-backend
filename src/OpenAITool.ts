@@ -37,11 +37,11 @@ class OpenAITool {
     async getResume(prompt: JSON): Promise<string>{
         console.log(prompt);
 
-        // this.profile = prompt["profile" as keyof JSON].toString();
-        // this.jobDescription = prompt["job" as keyof JSON].toString();
+        this.profile = prompt["profile" as keyof JSON].toString();
+        this.jobDescription = prompt["job" as keyof JSON].toString();
 
-        this.profile = await this.readFile()
-        this.jobDescription = await this.readFile2()
+        // this.profile = await this.readFile()
+        // this.jobDescription = await this.readFile2()
 
         // console.log(this.profile);
         // console.log(this.jobDescription);
@@ -49,12 +49,16 @@ class OpenAITool {
 
         const response = await this.client.responses.create({
             model: "gpt-4.1",
-            input: "Create an ATS compatible resume as a pdf template based on this linked in profile: "+this.profile+" and this job description: "+ this.jobDescription
-        });
+            input:   "Create a clean, ATS-friendly resume in plain text without using markdown, asterisks, or formatting symbols. Structure the resume using ALL CAPS section headers (e.g., SUMMARY, SKILLS, EXPERIENCE) and dashes (-) for bullet points.Base it on the following LinkedIn profile: " +
+    this.profile +
+    " and the following job description: " +
+    this.jobDescription +
+    ". Include these sections in order: Contact Information, Summary, Skills, Experience, Education, Certifications, Additional Information."
+});
 
         console.log(response.output_text);
         return response.output_text;
-
+   
     }
 
 }
